@@ -1,0 +1,166 @@
+Resultados de parámetros cinéticos de Datos/celulosa_15_aire.csv (Ea, A, R^2)
+==============================================
+
+Subgrupo 1:  CR0 (Zero Order):
+    Ea = 7140.20 J/mol
+    A = 1.31e-06
+    R^2 = 0.2294
+  CR1 (First Order):
+    Ea = 7272.62 J/mol
+    A = 1.39e-06
+    R^2 = 0.2347
+  CR2 (Second Order):
+    Ea = 7473.83 J/mol
+    A = 4.54e-06
+    R^2 = 0.2426
+  CR3 (Third Order):
+    Ea = 7541.59 J/mol
+    A = 1.56e-06
+    R^2 = 0.2453
+  DM1 (Parabolic law):
+    Ea = 21116.77 J/mol
+    A = 2.22e-06
+    R^2 = 0.4022
+  DM2 (Valensi - 2D diffusion):
+    Ea = 21204.59 J/mol
+    A = 1.15e-06
+    R^2 = 0.4036
+  DM3 (Ginstling - Broushtein):
+    Ea = 21234.06 J/mol
+    A = 2.59e-07
+    R^2 = 0.4041
+  NG1.5 (Avrami - Erofeev - n = 1.5):
+    Ea = 2569.62 J/mol
+    A = 1.14e-06
+    R^2 = 0.0769
+  NG2 (Avrami - Erofeev - n = 2):
+    Ea = 218.13 J/mol
+    A = 1.03e-06
+    R^2 = 0.0010
+  NG3 (Avrami - Erofeev - n = 3):
+    Ea = -2133.37 J/mol
+    A = 9.39e-07
+    R^2 = 0.1724
+
+Subgrupo 2:  CR0 (Zero Order):
+    Ea = 76667.62 J/mol
+    A = 2.78e+00
+    R^2 = 0.7951
+  CR1 (First Order):
+    Ea = 106711.68 J/mol
+    A = 1.44e+03
+    R^2 = 0.8559
+  CR2 (Second Order):
+    Ea = 171775.38 J/mol
+    A = 3.06e+09
+    R^2 = 0.9108
+  CR3 (Third Order):
+    Ea = 197986.67 J/mol
+    A = 2.29e+11
+    R^2 = 0.9202
+  DM1 (Parabolic law):
+    Ea = 163676.83 J/mol
+    A = 2.22e+07
+    R^2 = 0.8163
+  DM2 (Valensi - 2D diffusion):
+    Ea = 180425.63 J/mol
+    A = 3.66e+08
+    R^2 = 0.8332
+  DM3 (Ginstling - Broushtein):
+    Ea = 187322.80 J/mol
+    A = 3.41e+08
+    R^2 = 0.8399
+  NG1.5 (Avrami - Erofeev - n = 1.5):
+    Ea = 67693.92 J/mol
+    A = 8.99e-01
+    R^2 = 0.8427
+  NG2 (Avrami - Erofeev - n = 2):
+    Ea = 48185.04 J/mol
+    A = 2.24e-02
+    R^2 = 0.8277
+  NG3 (Avrami - Erofeev - n = 3):
+    Ea = 28676.17 J/mol
+    A = 5.60e-04
+    R^2 = 0.7915
+
+Subgrupo 3:  CR0 (Zero Order):
+    Ea = -7142.88 J/mol
+    A = 5.08e-07
+    R^2 = 0.9937
+  CR1 (First Order):
+    Ea = 16867.44 J/mol
+    A = 6.67e-05
+    R^2 = 0.7756
+  CR2 (Second Order):
+    Ea = 119874.41 J/mol
+    A = 4.17e+04
+    R^2 = 0.8013
+  CR3 (Third Order):
+    Ea = 161986.89 J/mol
+    A = 3.47e+07
+    R^2 = 0.8049
+  DM1 (Parabolic law):
+    Ea = -1696.21 J/mol
+    A = 1.10e-06
+    R^2 = 0.6526
+  DM2 (Valensi - 2D diffusion):
+    Ea = 5382.00 J/mol
+    A = 2.88e-06
+    R^2 = 0.8030
+  DM3 (Ginstling - Broushtein):
+    Ea = 10410.94 J/mol
+    A = 1.81e-06
+    R^2 = 0.8634
+  NG1.5 (Avrami - Erofeev - n = 1.5):
+    Ea = 7048.44 J/mol
+    A = 1.01e-05
+    R^2 = 0.5862
+  NG2 (Avrami - Erofeev - n = 2):
+    Ea = 2138.94 J/mol
+    A = 3.96e-06
+    R^2 = 0.1949
+  NG3 (Avrami - Erofeev - n = 3):
+    Ea = -2770.56 J/mol
+    A = 1.54e-06
+    R^2 = 0.4998
+
+Subgrupo 4:  CR0 (Zero Order):
+    Ea = -16525.08 J/mol
+    A = 1.36e-07
+    R^2 = 0.9983
+  CR1 (First Order):
+    Ea = -8991.07 J/mol
+    A = 2.84e-06
+    R^2 = 0.8094
+  CR2 (Second Order):
+    Ea = 78432.65 J/mol
+    A = 8.43e+03
+    R^2 = 0.6915
+  CR3 (Third Order):
+    Ea = 110091.08 J/mol
+    A = 6.63e+06
+    R^2 = 0.7125
+  DM1 (Parabolic law):
+    Ea = -16504.30 J/mol
+    A = 1.36e-07
+    R^2 = 0.9983
+  DM2 (Valensi - 2D diffusion):
+    Ea = -16389.10 J/mol
+    A = 1.38e-07
+    R^2 = 0.9978
+  DM3 (Ginstling - Broushtein):
+    Ea = -16039.56 J/mol
+    A = 4.75e-08
+    R^2 = 0.9965
+  NG1.5 (Avrami - Erofeev - n = 1.5):
+    Ea = -11509.33 J/mol
+    A = 1.03e-06
+    R^2 = 0.9400
+  NG2 (Avrami - Erofeev - n = 2):
+    Ea = -12768.47 J/mol
+    A = 6.21e-07
+    R^2 = 0.9714
+  NG3 (Avrami - Erofeev - n = 3):
+    Ea = -14027.60 J/mol
+    A = 3.74e-07
+    R^2 = 0.9887
