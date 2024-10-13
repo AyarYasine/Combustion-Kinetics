@@ -2,7 +2,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.odr import odr_error
 from sklearn.linear_model import LinearRegression
 from re import search
 import os.path
@@ -114,6 +113,8 @@ subgrupos_temp = np.split(temperature, indices)
 subgrupos_tempK = np.split(temperature_K, indices)
 subgrupos_alpha = np.split(alpha, indices)
 subgrupos_weight = np.split(weight_mg, indices)
+subgrupos_time = np.split(time, indices)
+subgrupo_heat_flow_q = np.split(heat_flow_q,indices)
 
 # ====================================================
 # 4. FUNCIONES CINÉTICAS Y AJUSTE DE MODELOS
@@ -294,7 +295,27 @@ generar_grafico(eje_x='Temperature T(c)', columnas_y=['Weight (mg)','Heat Flow (
 #'DTG_suavizado'
 
 # ====================================================
-# 6. REPRESENTACION DE LAS REGRESIONES
+# 7. CALCULO DE LA ENERGIA ASOCIADA AL PROCESO TERMICO
+# ====================================================
+# Convertir curva DSC de mW a W
+heat_flow_w = heat_flow_q * 0.001   # Convertir mW a W
+time_s = time * 60
+
+# Metodo de los trapecios auto
+energia_total = np.trapezoid(heat_flow_w, time*60)
+print(f"La energia obtenida de la integral temporal de la curva DSC es: {energia_total: .4f} J") # Resultado comprobado también con quad junto a interp1d
+
+# Integración manual usando una suma de trapecios
+energia_manual = 0.0
+for i in range(1, len(time_s)):
+    dx = time_s[i] - time_s[i - 1]
+    area_trapecio = 0.5 * (heat_flow_w[i] + heat_flow_w[i - 1]) * dx
+    energia_manual += area_trapecio
+
+print(f"Energía (Trapecios manual): {energia_manual:.4f} J")
+
+# ====================================================
+# 7. REPRESENTACION DE LAS REGRESIONES
 # ====================================================
 # Se podria dividir en 2 o 3 funciones. La primera seria la de solicitar al usuario que introduzca subgrupo y modelo. La siguiente seria la de trabajar con cada subgrupo y la ultima seria la de representar
 
@@ -342,6 +363,10 @@ def calcular_regresion(subgrupo_reg, modelos_reg):
     subgrupo_weight_reg = subgrupos_weight[subgrupo_reg - 1]
     subgrupo_temp_reg = subgrupos_temp[subgrupo_reg - 1]
 
+    subgrupo_time_reg = subgrupos_time[subgrupo_reg - 1]   # En realidad no deberia llamarse, subgrupo_time_reg, pq no hace nada para la regresion. Este subgrupo de tiempo se usa para calcular
+                                                            # la integral de DSC temporal en ese tramo unicamente.
+    subgrupo_heat_flow_q_reg = subgrupo_heat_flow_q[subgrupo_reg - 1]
+
     resultados_reg = {}
 
     for modelo in modelos_reg:
@@ -362,6 +387,8 @@ def calcular_regresion(subgrupo_reg, modelos_reg):
 
         ajuste_reg = pendiente * (1 / subgrupo_TempK_reg) + ordenada
 
+        energia_subgrupo = np.trapezoid(subgrupo_heat_flow_q_reg *0.001,subgrupo_time_reg*60 )
+
         resultados_reg[modelo] = {
             "reg_x": reg_x,
             "reg_y": reg_y,
@@ -371,7 +398,7 @@ def calcular_regresion(subgrupo_reg, modelos_reg):
             "R2_reg": r2_reg
         }
 
-    return subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg
+    return subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg, energia_subgrupo
 
 # ====================================================
 # Función para la representación gráfica
@@ -422,6 +449,7 @@ while True:
     subgrupo_reg, modelos_reg = solicitar_datos()
     if subgrupo_reg is None or modelos_reg is None:
         break
-    subgrupo_temp_reg,subgrupo_weight_reg,resultados_reg = calcular_regresion(subgrupo_reg, modelos_reg)
+    subgrupo_temp_reg,subgrupo_weight_reg,resultados_reg, energia_subgrupo = calcular_regresion(subgrupo_reg, modelos_reg)
+    print(f"\nLa energia asociada a dicho proceso es: {energia_subgrupo: .4f} J")
     representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg)
 
