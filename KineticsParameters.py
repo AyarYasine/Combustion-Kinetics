@@ -357,14 +357,18 @@ def calcular_regresion(subgrupo_reg, modelos_reg):
 
         coeficientes = np.polyfit(reg_x, reg_y, 1)
         pendiente, ordenada = coeficientes                  # De aqui puedo extraer de nuevo Ea y A y obviamente se corresponden con los extraidos previamente. El problema esta en que al
-                                                            # representar con los obtenidos previamente me da error.
+                                                            # representar con los obtenidos previamente me da error y es por eso por lo que se realiza el ajuste lineal de nuevo aqui
+
 
         ajuste_reg = pendiente * (1 / subgrupo_TempK_reg) + ordenada
 
         resultados_reg[modelo] = {
             "reg_x": reg_x,
             "reg_y": reg_y,
-            "ajuste_reg": ajuste_reg
+            "ajuste_reg": ajuste_reg,
+            "Ea_reg" : Ea_reg,
+            "A_reg" : A_reg,
+            "R2_reg": r2_reg
         }
 
     return subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg
@@ -373,36 +377,44 @@ def calcular_regresion(subgrupo_reg, modelos_reg):
 # Función para la representación gráfica
 # ====================================================
 def representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg):
-    # Crear la figura y los ejes para las gráficas
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    # Crear la figura con una cuadrícula de 3 filas x 2 columnas
+    fig, axs = plt.subplots(2, 3, figsize=(12, 10))
 
-    # Gráfica de temperatura vs. peso
-    ax1.plot(subgrupo_temp_reg, subgrupo_weight_reg, linestyle='-', color='b', label='Peso vs. Temperatura')
-    ax1.set_xlabel('Temperatura (°C)')
-    ax1.set_ylabel('Peso (mg)')
-    ax1.set_title('Gráfico de Temperatura vs. Peso')
-    ax1.grid(True)
-    ax1.legend()
+    # Desactivar los ejes que no se van a usar (posición 0,0 y 0,2)
+    axs[0, 0].axis('off')
+    axs[0, 2].axis('off')
 
-    # Gráficas de regresión lineal para cada modelo
-    for modelo, datos in resultados_reg.items():
+    # Gráfica de temperatura vs. peso en la posición 0,1 (segunda columna de la primera fila)
+    axs[0, 1].plot(subgrupo_temp_reg, subgrupo_weight_reg, linestyle='-', color='b', label='Peso vs. Temperatura')
+    axs[0, 1].set_xlabel('Temperatura (°C)')
+    axs[0, 1].set_ylabel('Peso (mg)')
+    axs[0, 1].set_title('Gráfico de Temperatura vs. Peso')
+    axs[0, 1].grid(True)
+    axs[0, 1].legend()
+
+    # Gráficas de regresión lineal para cada modelo en la segunda fila (1,0) (1,1) y (1,2)
+    for idx, (modelo, datos) in enumerate(resultados_reg.items()):
         reg_x = datos["reg_x"]
         reg_y = datos["reg_y"]
         ajuste_reg = datos["ajuste_reg"]
+        Ea = datos["Ea_reg"]
+        A = datos ["A_reg"]
+        R2 = datos ["R2_reg"]
 
-        ax2.plot(reg_x, reg_y, linestyle='--', label=f'{modelo} - ln(g(alpha) / T^2)')
-        ax2.plot(reg_x, ajuste_reg, linestyle='-', label=f'{modelo} - Ajuste lineal')
+        # Determinar la posición de la gráfica en la fila inferior
+        axs[1 , idx].plot(reg_x, reg_y, linestyle='--', label=f'{modelo} - ln(g(alpha) / T^2)')
+        axs[1 , idx].plot(reg_x, ajuste_reg, linestyle='-', label=f'{modelo} - Ajuste lineal\nEa = {Ea:.2f} kJ/mol\nA = {A:.2e} s⁻¹\nr² = {R2:.4f}')
 
-    # Configuración de la gráfica de regresiones
-    ax2.set_xlabel('1/T')
-    ax2.set_ylabel('ln(g(alpha) / T^2)')
-    ax2.set_title('Expresión Arrhenius linealizada')
-    ax2.grid(True)
-    ax2.legend()
+        # Configurar cada gráfica de la fila inferior
+        axs[1, idx].set_xlabel('1/T')
+        axs[1, idx].set_ylabel('ln(g(alpha) / T^2)')
+        axs[1, idx].set_title(f'{modelo}')
+        axs[1, idx].grid(True)
+        axs[1, idx].legend(loc = "best", fontsize = "small")
 
-    # Mostrar la gráfica
+    # Ajustar el diseño para que no haya superposición de textos
     fig.tight_layout()
-    fig.suptitle("Regresión lineal")
+    fig.suptitle("Regresiones lineales y Gráfico de Temperatura vs. Peso", y=1.02)
     plt.show()
 
 
