@@ -297,66 +297,119 @@ generar_grafico(eje_x='Temperature T(c)', columnas_y=['Weight (mg)','Heat Flow (
 # 6. REPRESENTACION DE LAS REGRESIONES
 # ====================================================
 # Se podria dividir en 2 o 3 funciones. La primera seria la de solicitar al usuario que introduzca subgrupo y modelo. La siguiente seria la de trabajar con cada subgrupo y la ultima seria la de representar
-while True:
-    subgrupo_reg = input("Introduce el subgrupo deseado (1 - 3) o 'exit' para salir: ")
-    if subgrupo_reg.lower() == "exit":
-        print ("Saliendo del proceso.")
-        break
 
-    modelo_reg = input ("Introduce el modelo deseado o 'exit' para salir: ").upper()  # Modificarlo para que el usuario nunca cometa errores, mostrando una lista por ejemplo
-    if modelo_reg.lower() == "exit":
-        print("Saliendo del proceso.")
-        break
+# ====================================================
+# Función para solicitar los datos del usuario
+# ====================================================
+def solicitar_datos():
+    while True:
+        subgrupo_reg = input("Introduce el subgrupo deseado (1 - 3) o 'exit' para salir: ")
+        if subgrupo_reg.lower() == "exit":
+            print("Saliendo del proceso.")
+            return None, None
 
-    try:
-        subgrupo_reg = int(subgrupo_reg)
-        if subgrupo_reg not in [1,2,3]:
-            print("Por favor, introduce un subgrupo valido (1 - 3): ")
-            continue
+        try:
+            subgrupo_reg = int(subgrupo_reg)
+            if subgrupo_reg not in [1, 2, 3]:
+                print("Por favor, introduce un subgrupo válido (1 - 3): ")
+                continue
 
-        subgrupo_TempK_reg = subgrupos_tempK[subgrupo_reg - 1]
-        subgrupo_alpha_reg = subgrupos_alpha[subgrupo_reg - 1]
-        subgrupo_weight_reg = subgrupos_weight[subgrupo_reg - 1]
-        subgrupo_temp_reg = subgrupos_temp [subgrupo_reg - 1]
-        modelo_func_reg = modelos[modelo_reg]
+            modelos_validos = ["CR0", "CR1", "CR2", "CR3", "DM0", "DM1", "DM2", "NG1.5", "NG2", "NG3"]
+            print(f"Modelos disponibles: {', '.join(modelos_validos)}")
+            modelos_reg = input("Introduce tres modelos separados por comas: ").upper().split(',')
 
-        Ea_reg, A_reg, r2_reg = ajustar_modelo_cr(subgrupo_TempK_reg,subgrupo_alpha_reg,modelo_func_reg)
-        print (f"Modelo: {modelo_reg}\nEa: {Ea_reg}\nA: {A_reg}\nr2: {r2_reg}")
+            if "EXIT" in modelos_reg:
+                print("Saliendo del proceso.")
+                return None, None
 
+            # Validar que se hayan introducido exactamente 3 modelos válidos
+            if len(modelos_reg) != 3 or any(modelo.strip() not in modelos_validos for modelo in modelos_reg):
+                print("Por favor, introduce tres modelos válidos de la lista.")
+                continue
+
+            return subgrupo_reg, [modelo.strip() for modelo in modelos_reg]     # Devolver lista de nombres eliminando los espacios si existieran
+
+        except ValueError:
+            print("Entrada inválida. Asegúrate de introducir un número para el número de subgrupo.")
+
+
+# ====================================================
+# Función para realizar los cálculos de cada modelo
+# ====================================================
+def calcular_regresion(subgrupo_reg, modelos_reg):
+    subgrupo_TempK_reg = subgrupos_tempK[subgrupo_reg - 1]
+    subgrupo_alpha_reg = subgrupos_alpha[subgrupo_reg - 1]
+    subgrupo_weight_reg = subgrupos_weight[subgrupo_reg - 1]
+    subgrupo_temp_reg = subgrupos_temp[subgrupo_reg - 1]
+
+    resultados_reg = {}
+
+    for modelo in modelos_reg:
+        modelo_func_reg = modelos[modelo]
+
+        # Calcular los parámetros de la regresión para el modelo
+        Ea_reg, A_reg, r2_reg = ajustar_modelo_cr(subgrupo_TempK_reg, subgrupo_alpha_reg, modelo_func_reg)
+        print(f"Modelo: {modelo}\nEa: {Ea_reg}\nA: {A_reg}\nr2: {r2_reg}")
+
+        # Calcular los valores para la representación de la regresión y su ajuste lineal
         reg_x = 1 / subgrupo_TempK_reg
-        reg_y = np.log (modelo_func_reg(subgrupo_alpha_reg) / subgrupo_TempK_reg ** 2)
+        reg_y = np.log(modelo_func_reg(subgrupo_alpha_reg) / subgrupo_TempK_reg ** 2)
 
-        coeficientes = np.polyfit(reg_x,reg_y,1)
-        pendiente, ordenada = coeficientes              # De aqui puedo extraer de nuevo Ea y A y obviamente se corresponden con los extraidos previamente. El problema esta en que al
-                                                        # representar con los obtenidos previamente me da error.
+        coeficientes = np.polyfit(reg_x, reg_y, 1)
+        pendiente, ordenada = coeficientes                  # De aqui puedo extraer de nuevo Ea y A y obviamente se corresponden con los extraidos previamente. El problema esta en que al
+                                                            # representar con los obtenidos previamente me da error.
 
-        ajuste_reg = pendiente * (1/subgrupo_TempK_reg) + ordenada
-        ajuste_reg1 = np.log(A_reg*R / beta*Ea_reg) + (reg_x * Ea_reg/R)
+        ajuste_reg = pendiente * (1 / subgrupo_TempK_reg) + ordenada
 
-        # Representación
-        fig, (ax1, ax2) = plt.subplots (2)
+        resultados_reg[modelo] = {
+            "reg_x": reg_x,
+            "reg_y": reg_y,
+            "ajuste_reg": ajuste_reg
+        }
 
-        ax1.plot (subgrupo_temp_reg, subgrupo_weight_reg, linestyle='-', color='b', label='Peso vs. Temperatura')
-        ax1.set_xlabel('Temperatura (°C)')
-        ax1.set_ylabel('Peso (mg)')
-        ax1.set_title ('Gráfico de Temperatura vs. Peso')
-        ax1.legend()
+    return subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg
 
-        ax2.plot(reg_x, reg_y, linestyle='--', color='g', label='1/T vs ln(g(alpha) / T^2)')
-        #ax2.plot(reg_x, ajuste_reg,linestyle='-', color='r', label='Ajuste lineal')
-        ax2.plot(reg_x, ajuste_reg1, linestyle='-', color='b', label='Ajuste lineal2')
-        ax2.set_xlabel('1/T')
-        ax2.set_ylabel('ln(g(alpha) / T^2)')
-        ax2.set_title('Expresion Arrhenius linealizada')
-        ax2.legend()
+# ====================================================
+# Función para la representación gráfica
+# ====================================================
+def representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg):
+    # Crear la figura y los ejes para las gráficas
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
-        # Mostrar la gráfica
-        fig.tight_layout()
-        fig.suptitle("Regresión lineal")
-        plt.show()
+    # Gráfica de temperatura vs. peso
+    ax1.plot(subgrupo_temp_reg, subgrupo_weight_reg, linestyle='-', color='b', label='Peso vs. Temperatura')
+    ax1.set_xlabel('Temperatura (°C)')
+    ax1.set_ylabel('Peso (mg)')
+    ax1.set_title('Gráfico de Temperatura vs. Peso')
+    ax1.grid(True)
+    ax1.legend()
+
+    # Gráficas de regresión lineal para cada modelo
+    for modelo, datos in resultados_reg.items():
+        reg_x = datos["reg_x"]
+        reg_y = datos["reg_y"]
+        ajuste_reg = datos["ajuste_reg"]
+
+        ax2.plot(reg_x, reg_y, linestyle='--', label=f'{modelo} - ln(g(alpha) / T^2)')
+        ax2.plot(reg_x, ajuste_reg, linestyle='-', label=f'{modelo} - Ajuste lineal')
+
+    # Configuración de la gráfica de regresiones
+    ax2.set_xlabel('1/T')
+    ax2.set_ylabel('ln(g(alpha) / T^2)')
+    ax2.set_title('Expresión Arrhenius linealizada')
+    ax2.grid(True)
+    ax2.legend()
+
+    # Mostrar la gráfica
+    fig.tight_layout()
+    fig.suptitle("Regresión lineal")
+    plt.show()
 
 
-    except ValueError:
-        print ("Entrada invalida. Asegurate de introducir un numero para el numero de subrgrupo")
-
+while True:
+    subgrupo_reg, modelos_reg = solicitar_datos()
+    if subgrupo_reg is None or modelos_reg is None:
+        break
+    subgrupo_temp_reg,subgrupo_weight_reg,resultados_reg = calcular_regresion(subgrupo_reg, modelos_reg)
+    representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg)
 
