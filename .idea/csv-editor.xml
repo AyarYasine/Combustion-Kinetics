@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="\Datos\VelocidadCalentamiento15\celulosa_15_aire.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\Datos\VelocidadCalentamiento15\celulosa_15_n2.csv">
           <value>
             <Attribute>

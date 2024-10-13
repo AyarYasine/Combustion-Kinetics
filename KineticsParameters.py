@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.odr import odr_error
 from sklearn.linear_model import LinearRegression
 from re import search
 import os.path
@@ -11,7 +12,7 @@ import os.path
 # ====================================================
 
 # Cargar el archivo CSV
-csv_path = 'Datos/VelocidadCalentamiento30/celulosa_30_aire.csv'
+csv_path = 'Datos/VelocidadCalentamiento5/celulosa_5_aire.csv'
 df = pd.read_csv(csv_path, sep=';')  # Leer el archivo CSV
 
 # Reemplazar las comas por puntos en los valores numéricos
@@ -112,7 +113,7 @@ indices = sorted(set(indices))
 subgrupos_temp = np.split(temperature, indices)
 subgrupos_tempK = np.split(temperature_K, indices)
 subgrupos_alpha = np.split(alpha, indices)
-
+subgrupos_weight = np.split(weight_mg, indices)
 
 # ====================================================
 # 4. FUNCIONES CINÉTICAS Y AJUSTE DE MODELOS
@@ -120,7 +121,8 @@ subgrupos_alpha = np.split(alpha, indices)
 
 R = 8.3144  # Constante de los gases en J/mol·K
 beta = int(search(r'VelocidadCalentamiento(\d+)', csv_path).group(1))        # Buscamos la palabra "VelocidadCalentamiento" seguida de uno o mas digitos (\d+),
-                                                                                    # el parentesis captura dichos digitos. A continuacion se convierten a int dichos digitos almacenados en group(1)
+                                                                                    # el parentesis captura dichos digitos. A continuacion se convierten a int dichos digitos almacenados en group
+                                                                                    # Lo suyo seria ponerla en MAYUSCULA.
 # Funciones g(alpha) para los distintos modelos cinéticos
 # Chemical reaction model
 # Zero order (CR0)
@@ -182,18 +184,17 @@ def ajustar_modelo_cr(temperature, alpha, g_alpha_func):
 
 # Aplicar el ajuste para cada subgrupo y modelo
 modelos = {
-    "CR0 (Zero Order)": cr0,
-    "CR1 (First Order)": cr1,
-    "CR2 (Second Order)": cr2,
-    "CR3 (Third Order)": cr3,
-    "DM1 (Parabolic law)": dm1,
-    "DM2 (Valensi - 2D diffusion)": dm2,
-    "DM3 (Ginstling - Broushtein)": dm3,
-    "NG1.5 (Avrami - Erofeev - n = 1.5)": ng1_5,
-    "NG2 (Avrami - Erofeev - n = 2)": ng2,
-    "NG3 (Avrami - Erofeev - n = 3)": ng3,
+    "CR0": cr0,
+    "CR1": cr1,
+    "CR2": cr2,
+    "CR3": cr3,
+    "DM1": dm1,
+    "DM2": dm2,
+    "DM3": dm3,
+    "NG1.5": ng1_5,
+    "NG2": ng2,
+    "NG3": ng3,
 }
-
 # Almacenar resultados en una lista
 resultados = []     # Crear un diccionario de DataFrames donde se almacenarán los datos de cada subgrupo
 for i, (temp_sub, alpha_sub) in enumerate(zip(subgrupos_tempK, subgrupos_alpha)):   # Iterar sobre cada subgrupo y ajustar todos los modelos
@@ -276,7 +277,7 @@ def generar_grafico(eje_x, columnas_y, title, particiones=None):
 
 
 # Ejemplo de uso con columnas seleccionadas y ordenadas manualmente
-generar_grafico(eje_x='Time t (min)', columnas_y=['Weight (mg)','Heat Flow (Normalized) Q (W/g)','DTG_suavizado'], title=os.path.splitext(csv_path.split('/')[-1])[0], particiones=indices)
+generar_grafico(eje_x='Temperature T(c)', columnas_y=['Weight (mg)','Heat Flow (Normalized) Q (W/g)','DTG_suavizado'], title=os.path.splitext(csv_path.split('/')[-1])[0], particiones=indices)
 # Para obtener el titulo a partir del nombre del archivo csv; primero se ha divido el nombre del archivo csv usando las '/' que hay en el mismo nombre, se ha seleccionado la ultima palabra [-1]
 # finalmente se ha dividido "celulosa_5_aire" y ".csv", quedandonos con la primera [0]
 
@@ -291,3 +292,71 @@ generar_grafico(eje_x='Time t (min)', columnas_y=['Weight (mg)','Heat Flow (Norm
 #'Heat Flow Q (mW)'
 #'Heat Flow (Normalized) Q (W/g)'
 #'DTG_suavizado'
+
+# ====================================================
+# 6. REPRESENTACION DE LAS REGRESIONES
+# ====================================================
+# Se podria dividir en 2 o 3 funciones. La primera seria la de solicitar al usuario que introduzca subgrupo y modelo. La siguiente seria la de trabajar con cada subgrupo y la ultima seria la de representar
+while True:
+    subgrupo_reg = input("Introduce el subgrupo deseado (1 - 3) o 'exit' para salir: ")
+    if subgrupo_reg.lower() == "exit":
+        print ("Saliendo del proceso.")
+        break
+
+    modelo_reg = input ("Introduce el modelo deseado o 'exit' para salir: ").upper()  # Modificarlo para que el usuario nunca cometa errores, mostrando una lista por ejemplo
+    if modelo_reg.lower() == "exit":
+        print("Saliendo del proceso.")
+        break
+
+    try:
+        subgrupo_reg = int(subgrupo_reg)
+        if subgrupo_reg not in [1,2,3]:
+            print("Por favor, introduce un subgrupo valido (1 - 3): ")
+            continue
+
+        subgrupo_TempK_reg = subgrupos_tempK[subgrupo_reg - 1]
+        subgrupo_alpha_reg = subgrupos_alpha[subgrupo_reg - 1]
+        subgrupo_weight_reg = subgrupos_weight[subgrupo_reg - 1]
+        subgrupo_temp_reg = subgrupos_temp [subgrupo_reg - 1]
+        modelo_func_reg = modelos[modelo_reg]
+
+        Ea_reg, A_reg, r2_reg = ajustar_modelo_cr(subgrupo_TempK_reg,subgrupo_alpha_reg,modelo_func_reg)
+        print (f"Modelo: {modelo_reg}\nEa: {Ea_reg}\nA: {A_reg}\nr2: {r2_reg}")
+
+        reg_x = 1 / subgrupo_TempK_reg
+        reg_y = np.log (modelo_func_reg(subgrupo_alpha_reg) / subgrupo_TempK_reg ** 2)
+
+        coeficientes = np.polyfit(reg_x,reg_y,1)
+        pendiente, ordenada = coeficientes              # De aqui puedo extraer de nuevo Ea y A y obviamente se corresponden con los extraidos previamente. El problema esta en que al
+                                                        # representar con los obtenidos previamente me da error.
+
+        ajuste_reg = pendiente * (1/subgrupo_TempK_reg) + ordenada
+        ajuste_reg1 = np.log(A_reg*R / beta*Ea_reg) + (reg_x * Ea_reg/R)
+
+        # Representación
+        fig, (ax1, ax2) = plt.subplots (2)
+
+        ax1.plot (subgrupo_temp_reg, subgrupo_weight_reg, linestyle='-', color='b', label='Peso vs. Temperatura')
+        ax1.set_xlabel('Temperatura (°C)')
+        ax1.set_ylabel('Peso (mg)')
+        ax1.set_title ('Gráfico de Temperatura vs. Peso')
+        ax1.legend()
+
+        ax2.plot(reg_x, reg_y, linestyle='--', color='g', label='1/T vs ln(g(alpha) / T^2)')
+        #ax2.plot(reg_x, ajuste_reg,linestyle='-', color='r', label='Ajuste lineal')
+        ax2.plot(reg_x, ajuste_reg1, linestyle='-', color='b', label='Ajuste lineal2')
+        ax2.set_xlabel('1/T')
+        ax2.set_ylabel('ln(g(alpha) / T^2)')
+        ax2.set_title('Expresion Arrhenius linealizada')
+        ax2.legend()
+
+        # Mostrar la gráfica
+        fig.tight_layout()
+        fig.suptitle("Regresión lineal")
+        plt.show()
+
+
+    except ValueError:
+        print ("Entrada invalida. Asegurate de introducir un numero para el numero de subrgrupo")
+
+
