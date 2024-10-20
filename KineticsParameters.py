@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from re import search
-import os.path
+import os
 
 # Constantes globales
 R = 8.3144              # Constante de los gases en J/mol·K
@@ -12,7 +12,6 @@ R = 8.3144              # Constante de los gases en J/mol·K
 # ====================================================
 # 1. CARGA Y PROCESAMIENTO DE DATOS
 # ====================================================
-
 def cargar_datos(ruta_archivo):
     """
     # Se cargan los datos del archivo .csv a un dataframe (df) y se sustituyen las ',' que hay en los valores de las columnas por '.'
@@ -89,8 +88,7 @@ def dividir_en_subgrupos(temperature, temperature_k, alpha, weight_mg, time, hea
     indices = []
     for temp in temp_subgrupos:
         temp_cercana, idx = encontrar_mas_cercano(temperature, temp)
-        print(
-            f"La temperatura más cercana a {temp:.2f} en el vector de Temperatura es {temp_cercana:.2f} en el índice {idx}")
+        # print( f"La temperatura más cercana a {temp:.2f} en el vector de Temperatura es {temp_cercana:.2f} en el índice {idx}")
         indices.append(idx)  # Añade el indice idx (el indice de la temp mas cercana) a lista de indices
 
     # Ordenar los índices por si no están en orden y eliminar duplicados
@@ -173,12 +171,32 @@ def aplicar_modelos(subgrupos, beta):
 # ====================================================
 # 6. GUARDAR RESULTADOS Y GRAFICAR
 # ====================================================
-def guardar_resultados(resultados, output_excel_file='parametros_cineticos.xlsx'):
-    resultados.to_excel(output_excel_file, index=False)
-    print(f"Resultados guardados en '{output_excel_file}'")
+def guardar_resultados(resultados, ruta_archivo):
+
+    # Obtener el nombre del archivo sin la extensión (ejemplo: 'celulosa_15_aire')
+    nombre_archivo = os.path.splitext(os.path.basename(ruta_archivo))[0]
+
+    # Determinar la subcarpeta (VelocidadCalentamiento5, VelocidadCalentamiento15, VelocidadCalentamiento30)
+    subcarpeta = os.path.dirname(ruta_archivo).split(os.sep)[-1]
+
+    # Crear la ruta del directorio donde se guardará el archivo de Excel
+    ruta_directorio_salida = os.path.join('Resultados', 'ParametrosCineticos', subcarpeta)
+
+    # Crear el directorio si no existe
+    os.makedirs(ruta_directorio_salida, exist_ok=True)
+
+    # Crear el nombre del archivo Excel (por ejemplo: 'ParametrosCineticos_celulosa_15_aire.xlsx')
+    nombre_archivo_excel = f'{nombre_archivo}.xlsx'
+
+    # Ruta completa del archivo Excel
+    ruta_salida = os.path.join(ruta_directorio_salida, nombre_archivo_excel)
+
+    # Guardar el DataFrame en un archivo Excel
+    resultados.to_excel(ruta_salida, index=False)
+    print(f"Resultados guardados en '{ruta_salida}'")
 
 # Función para generar gráficos con múltiples ejes Y y particiones
-def generar_grafico(df, eje_x, columnas_y, title, particiones=None):
+def generar_grafico(df, eje_x, columnas_y, ruta_archivo, particiones=None):
     if not columnas_y:
         print("No se seleccionaron columnas para el eje Y. Por favor, especifica al menos una columna.")
         return
@@ -189,7 +207,8 @@ def generar_grafico(df, eje_x, columnas_y, title, particiones=None):
         print(f"Ninguna de las columnas seleccionadas existe en el DataFrame. Columnas disponibles: {list(df.columns)}")
         return
 
-    fig, ax1 = plt.subplots()
+    nombre_archivo = os.path.splitext(os.path.basename(ruta_archivo))[0]
+    fig, ax1 = plt.subplots(figsize=(12,8))
 
     # Configurar el eje X
     eje_x_data = df[eje_x]
@@ -225,10 +244,23 @@ def generar_grafico(df, eje_x, columnas_y, title, particiones=None):
             ax1.legend(loc='upper right')
 
     # Ajustar la figura para evitar solapamientos
-    fig.suptitle(f"Gráfico de {title}")
+    fig.suptitle(f"Gráfico de {nombre_archivo}")
     fig.tight_layout()
-    plt.show()
+    #plt.show()
 
+    # Determinar la subcarpeta (VelocidadCalentamiento5, VelocidadCalentamiento15, VelocidadCalentamiento30)
+    subcarpeta = os.path.dirname(ruta_archivo).split(os.sep)[-1]
+
+    # Crear el directorio correspondiente
+    directorio_graficas = f'Resultados/Graficas/{subcarpeta}'
+    os.makedirs(directorio_graficas, exist_ok=True)
+
+    # Guardar la figura en el directorio adecuado
+    ruta_grafico = os.path.join(directorio_graficas, f'{nombre_archivo}.png')
+    plt.savefig(ruta_grafico, dpi = 300)  # Guarda la gráfica
+    plt.close(fig)  # Cierra la figura para liberar memoria
+
+    print(f"\nGráfico guardado en: {ruta_grafico}")
 
 # ====================================================
 # 7. ENERGÍA ASOCIADA AL PROCESO
@@ -247,7 +279,7 @@ def calcular_energia(heat_flow_q, time):
 # ====================================================
 def solicitar_datos():
     while True:
-        subgrupo_reg = input("Introduce el subgrupo deseado (1 - 3) o 'exit' para salir: ")
+        subgrupo_reg = input("\nIntroduce el subgrupo deseado (1 - 3) o 'exit' para salir: ")
         if subgrupo_reg.lower() == "exit":
             print("Saliendo del proceso.")
             return None, None
@@ -285,9 +317,8 @@ def calcular_regresion(subgrupo_reg, modelos_reg, subgrupos, beta):
     subgrupo_alpha_reg = subgrupos['alpha'][subgrupo_reg - 1]
     subgrupo_weight_reg = subgrupos['weight'][subgrupo_reg - 1]
     subgrupo_temp_reg = subgrupos['temp'][subgrupo_reg - 1]
-
-    subgrupo_time_reg = subgrupos['time'][subgrupo_reg - 1]     # En realidad no deberia llamarse, subgrupo_time_reg, pq no hace nada para la regresion. Este subgrupo de tiempo se usa para calcular
-                                                                # la integral de DSC temporal en ese tramo unicamente.
+    subgrupo_time_reg = subgrupos['time'][subgrupo_reg - 1]                 # En realidad no deberia llamarse, subgrupo_time_reg, pq no hace nada para la regresion. Este subgrupo de tiempo se usa para calcular
+                                                                            # la integral de DSC temporal en ese tramo unicamente.
     subgrupo_heat_flow_q_reg = subgrupos['heat_flow_q'][subgrupo_reg - 1]
 
     resultados_reg = {}
@@ -324,7 +355,7 @@ def calcular_regresion(subgrupo_reg, modelos_reg, subgrupos, beta):
 # ====================================================
 # Función para la representación gráfica
 # ====================================================
-def representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg):
+def representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg, ruta_archivo):
     # Crear la figura con una cuadrícula de 3 filas x 2 columnas
     fig, axs = plt.subplots(2, 3, figsize=(12, 10))
 
@@ -363,8 +394,23 @@ def representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg
     # Ajustar el diseño para que no haya superposición de textos
     fig.tight_layout()
     fig.suptitle("Regresiones lineales y Gráfico de Temperatura vs. Peso", y=1.02)
-    plt.show()
+    # plt.show()
 
+    # Determinar la subcarpeta (VelocidadCalentamiento5, VelocidadCalentamiento15, VelocidadCalentamiento30)
+    subcarpeta = os.path.dirname(ruta_archivo).split(os.sep)[-1]
+
+    nombre_archivo = os.path.splitext(os.path.basename(ruta_archivo))[0]
+
+    # Crear el directorio correspondiente
+    directorio_regresiones = f'Resultados/Regresiones/{subcarpeta}'
+    os.makedirs(directorio_regresiones, exist_ok=True)
+
+    # Guardar la figura en el directorio adecuado
+    ruta_regresiones = os.path.join(directorio_regresiones, f'{nombre_archivo}.png')
+    plt.savefig(ruta_regresiones, dpi = 300)  # Guarda la gráfica
+    plt.close(fig)  # Cierra la figura para liberar memoria
+
+    print(f"\nRegresiones guardadas en: {ruta_regresiones}")
 
 # ====================================================
 # FLUJO PRINCIPAL
@@ -377,11 +423,11 @@ def main(ruta_archivo, temp_subgrupos):
     dtg_suavizado = suavizar_dtg(dtg, 400)
     df['DTG_suavizado'] = dtg_suavizado
 
-    subgrupos, indices = dividir_en_subgrupos(datos['temperature'], datos['temperature_k'], datos['alpha'],
-                                              datos['weight_mg'], datos['time'], datos['heat_flow_q'],
-                                              temp_subgrupos)
-    generar_grafico(df, eje_x='Temperature T(c)', columnas_y=['Weight (mg)','Heat Flow (Normalized) Q (W/g)','DTG_suavizado'], title=os.path.splitext(ruta_archivo.split('/')[-1])[0], particiones = indices)
-    """Para obtener el titulo a partir del nombre del archivo csv; primero se ha divido el nombre del archivo csv usando las '/' que hay en el mismo nombre, se ha seleccionado la ultima palabra [-1]
+    subgrupos, indices = dividir_en_subgrupos(datos['temperature'], datos['temperature_k'], datos['alpha'], datos['weight_mg'], datos['time'], datos['heat_flow_q'], temp_subgrupos)
+
+    generar_grafico(df, eje_x='Temperature T(c)', columnas_y=['Weight (mg)','Heat Flow (Normalized) Q (W/g)','DTG_suavizado'], ruta_archivo = ruta_archivo, particiones = indices)
+    """
+    Para obtener el titulo a partir del nombre del archivo csv; primero se ha divido el nombre del archivo csv usando las '/' que hay en el mismo nombre, se ha seleccionado la ultima palabra [-1]
     finalmente se ha dividido "celulosa_5_aire" y ".csv", quedandonos con la primera [0]
     Muchisimo cuidado al meter el nombre, debe ser exactamente igual. Copiarlo de aqui.
     eje_x
@@ -393,39 +439,144 @@ def main(ruta_archivo, temp_subgrupos):
     'Weight (%)'
     'Heat Flow Q (mW)'
     'Heat Flow (Normalized) Q (W/g)'
-    'DTG_suavizado'"""
+    'DTG_suavizado'
+    """
 
     beta = int(search(r'VelocidadCalentamiento(\d+)', ruta_archivo).group(1))
-    """Buscamos la palabra "VelocidadCalentamiento" seguida de uno o mas digitos (\d+),
-        el parentesis captura dichos digitos. A continuacion se convierten a int dichos digitos almacenados en group
-        Lo suyo seria ponerla en MAYUSCULA"""
+    """
+    Buscamos la palabra "VelocidadCalentamiento" seguida de uno o mas digitos (\d+),
+    el parentesis captura dichos digitos. A continuacion se convierten a int dichos digitos almacenados en group
+    Lo suyo seria ponerla en MAYUSCULA
+    """
     resultados = aplicar_modelos(subgrupos, beta)
 
 
     energia_total = calcular_energia(datos['heat_flow_q'],datos['time'])
     print(f"La energia obtenida de la integral temporal de la curva DSC es: {energia_total: .4f} J")
 
-    guardar_resultados(resultados)
+    guardar_resultados(resultados, ruta_archivo)
 
-    while True:
-        subgrupo_reg, modelos_reg = solicitar_datos()
-        if subgrupo_reg is None or modelos_reg is None:
-            break
-        subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg, energia_subgrupo = calcular_regresion(subgrupo_reg,
-                                                                                                      modelos_reg, subgrupos, beta)
-        print(f"\nLa energia asociada a dicho proceso es: {energia_subgrupo: .4f} J")
-        representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg)
-
+    nombre_componente = os.path.splitext(os.path.basename(ruta_archivo))[0]
+    datos_regresiones = {
+        'celulosa_5_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ["CR1","CR2","CR3"]
+        },
+        'celulosa_5_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'lignina_5_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'lignina_5_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_5_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_5_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'celulosa_15_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','CR2','CR3']
+        },
+        'celulosa_15_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','CR2','CR3']
+        },
+        'lignina_15_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['DM0','DM1','DM2']
+        },
+        'lignina_15_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_15_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_15_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'celulosa_30_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'celulosa_30_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'lignina_30_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'lignina_30_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_30_aire': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        },
+        'xilano_30_n2': {
+            'numero_subgrupo': 2,
+            'nombres_modelos': ['CR1','DM1','DM2']
+        }
+    }
+    subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg, energia_subgrupo = calcular_regresion(
+        datos_regresiones[nombre_componente]['numero_subgrupo'],
+        datos_regresiones[nombre_componente]['nombres_modelos'], subgrupos, beta)
+    print(f"\nLa energia asociada a dicho proceso es: {energia_subgrupo: .4f} J")
+    representar_regresion(subgrupo_temp_reg, subgrupo_weight_reg, resultados_reg, ruta_archivo)
 
 if __name__ == "__main__":
-    # Ruta al archivo CSV
-    csv_path = "Datos/VelocidadCalentamiento30/xilano_30_n2.csv"
+    # Directorio principal que contiene las carpetas con los archivos .csv
+    directorio = 'Datos'
 
-    # Lista de temperaturas seleccionadas para dividir los datos
-    temp_seleccionadas = [220, 340]
+    # Leer el contenido del directorio 'Datos' solo una vez
+    contenido_directorio = [(carpeta, os.listdir(os.path.join(directorio, carpeta)))
+                            for carpeta in os.listdir(directorio)
+                            if os.path.isdir(os.path.join(directorio, carpeta))]
 
-    # Inicializar el flujo principal
-    main(csv_path, temp_seleccionadas)
+    temp_seleccionadas = {
+        'celulosa_5_aire' : [270,370],
+        'celulosa_5_n2': [280,360],
+        'lignina_5_aire':[130,450],
+        'lignina_5_n2':[140,600],
+        'xilano_5_aire':[180,280],
+        'xilano_5_n2': [220,300],
+        'celulosa_15_aire': [290, 380],
+        'celulosa_15_n2': [300, 400],
+        'lignina_15_aire': [140, 640],
+        'lignina_15_n2': [160, 650],
+        'xilano_15_aire': [220, 310],
+        'xilano_15_n2': [230, 320],
+        'celulosa_30_aire': [280, 420],
+        'celulosa_30_n2': [280, 430],
+        'lignina_30_aire': [170, 750],
+        'lignina_30_n2': [160, 590],
+        'xilano_30_aire': [220, 350],
+        'xilano_30_n2': [220, 340],
+    }
 
+    # Procesar los archivos de la lista obtenida en la lectura única del directorio
+    for carpeta, archivos in contenido_directorio:
+        ruta_carpeta = os.path.join(directorio, carpeta)
 
-
+        # Recorrer los archivos en la lista de archivos de esa carpeta
+        for archivo in archivos:
+            # Verificar si el archivo es un archivo .csv
+            if archivo.endswith('.csv'):
+                ruta_archivo = os.path.join(ruta_carpeta, archivo)
+                nombre_componente = os.path.splitext(os.path.basename(ruta_archivo))[0]
+                temp_subgrupos = temp_seleccionadas[nombre_componente]
+                # Procesar el archivo .csv
+                main(ruta_archivo, temp_subgrupos)
