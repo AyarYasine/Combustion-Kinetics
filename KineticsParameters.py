@@ -1,4 +1,5 @@
 # Development Branch. The work is done here, and then merged into the master branch
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -137,7 +138,6 @@ modelos = {
 def ajustar_modelo(temperature, alpha, modelo_func, beta):
     t_inv = 1 / temperature
     g_alpha = modelo_func(alpha)
-
     # Variables para la regresión, LinearRegression espera que los datos de entrada x (variables independientes) tengan
     # dos dimensiones, donde cada fila representa un punto de datos y cada columna una variable. Por lo tanto, reshape
     # transforma el vector 1D en un matriz con una sola columna.
@@ -155,7 +155,9 @@ def ajustar_modelo(temperature, alpha, modelo_func, beta):
     Ea = -pendiente * R                         # Energía de activación en J/mol
     A = (beta * Ea / R) * np.exp(intercepto)    # Factor pre-exponencial min^-1
 
-    return Ea, A, r2
+    ajuste_reg = pendiente * (1 / temperature) + intercepto
+
+    return Ea, A, r2, pendiente, intercepto, x, y, ajuste_reg
 
 
 def aplicar_modelos(subgrupos, beta):
@@ -168,30 +170,22 @@ def aplicar_modelos(subgrupos, beta):
             resultados [subgrupo_key] = {}
 
         for nombre, modelo_func in modelos.items():
-            Ea, A, r2 = ajustar_modelo(temp_K_sub, alpha_sub, modelo_func, beta)
-
-            reg_x = 1 / temp_K_sub
-            reg_y = np.log(modelo_func(alpha_sub) / temp_K_sub ** 2)
-
-            coeficientes = np.polyfit(reg_x, reg_y, 1)
-            pendiente, ordenada = coeficientes  # De aqui puedo extraer de nuevo Ea y A y obviamente se corresponden con los extraidos previamente. El problema esta en que al
-            # representar con los obtenidos previamente me da error y es por eso por lo que se realiza el ajuste lineal de nuevo aqui
-
-            ajuste_reg = pendiente * (1 / temp_K_sub) + ordenada
-
+            Ea, A, r2, pendiente, ordenada,x,y,ajuste_reg = ajustar_modelo(temp_K_sub, alpha_sub, modelo_func, beta)
             # Guardar los resultados del modelo dentro del subgrupo
             resultados[subgrupo_key][nombre]={
                 "Ea (J/mol)":Ea,
                 "A (1/min)": A,
                 "R^2": r2,
-                "reg_x": reg_x,
-                "reg_y": reg_y,
-                "ajuste_reg": ajuste_reg
+                "reg_x": x,
+                "reg_y": y,
+                "ajuste_reg": ajuste_reg,
+                "a": pendiente,
+                "b": ordenada,
             }
     return resultados
 
 # ====================================================
-# 6. GUARDAR RESULTADOS Y GRAFICAR
+# 6. GUARDAR RESULTADOS, GRAFICAR y GUARDAR GRAFICOS
 # ====================================================
 def guardar_resultados(resultados, ruta_archivo):
 
@@ -200,8 +194,16 @@ def guardar_resultados(resultados, ruta_archivo):
 
     for subgrupo,modelos in resultados.items():
         for modelo, valores in modelos.items():
-            fila = {"Subgrupo": subgrupo,"Modelo": modelo }
-            fila.update(valores)    # Añadir las columnas de Ea, A y R2
+            # Creacion de una fila solo con las columnas necesarias (omitiendo en este caso reg_x, reg_y y ajuste_reg
+            fila = {
+                "Subgrupo": subgrupo,
+                "Modelo": modelo,
+                "Ea (J/mol)": valores["Ea (J/mol)"],
+                "A (1/min)": valores["A (1/min)"],
+                "R2": valores["R^2"],
+                "Pendiente":valores ["a"],
+                "Ordenada": valores ["b"]
+            }
             resultados_list.append(fila)
 
     # Convertir la lista de diccionarios en un Dataframe
@@ -305,6 +307,7 @@ def guardar_graficas (figura, ruta_archivo):
     plt.close(figura)  # Cierra la figura para liberar memoria
 
     print(f"\nGráfico guardado en: {ruta_grafico}")
+
 # ====================================================
 # 7. ENERGÍA ASOCIADA AL PROCESO
 # ====================================================
@@ -315,27 +318,26 @@ def calcular_energia(heat_flow_q, time):
     print(f"La energia obtenida de la integral temporal de la curva DSC es: {energia: .4f} J")
 
 # ====================================================
-# 7. REPRESENTACION DE LAS REGRESIONES
+# 8. REPRESENTACION DE LAS REGRESIONES
 # ====================================================
-
 # ====================================================
 # Función para la representación gráfica de la regresiones
 # ====================================================
 def representar_regresion(resultados, ruta_archivo):
 
     nombre_componente= os.path.splitext(os.path.basename(ruta_archivo))[0]
-    print(f"Nombre Componente: {nombre_componente}")
+    #print(f"Nombre Componente: {nombre_componente}")
 
     for subgrupo_key, subgrupo_val in resultados.items():
         # Crear la figura con una cuadrícula de 2 filas x 5 columnas - Albergara todos los modelos de un subgrupo
         fig, axs = plt.subplots(2, 5, figsize=(20, 10))
 
         for idx, (nombre, datos) in enumerate(subgrupo_val.items()):
-            print(f"Subgrupo: {subgrupo_key} - Nombre: {nombre}")
+            #rint(f"Subgrupo: {subgrupo_key} - Nombre: {nombre}")
             Ea = datos['Ea (J/mol)']
             A = datos['A (1/min)']
             R2 = datos['R^2']
-            print(f" Ea:{Ea}\n A:{A}\n R2:{R2}")
+            #print(f" Ea:{Ea}\n A:{A}\n R2:{R2}")
 
             reg_x = datos["reg_x"]
             reg_y = datos["reg_y"]
@@ -359,13 +361,16 @@ def representar_regresion(resultados, ruta_archivo):
             # Rotar las etiquetas del eje x para evitar solapamiento
             axs[row, col].tick_params(axis='x', rotation=45)
 
+        # Devuelve las temperaturas iniciales y finales de cada subgrupo
+        temp_inicial = int((1 / reg_x[0]) - 273)
+        temp_final = int((1 / reg_x[-1]) - 273)
 
         # Ajustar diseño de los subplots
         fig.tight_layout()
 
         # Añadir margen y el título general
         plt.subplots_adjust(top=0.88)  # Margen superior adicional para el título
-        fig.suptitle(f"Ajustes lineales para el subgrupo {subgrupo_key} del componente {nombre_componente}",
+        fig.suptitle(f"Ajustes lineales para el subgrupo {subgrupo_key} ({temp_inicial}ºC - {temp_final}ºC) del componente {nombre_componente}",
                      fontsize=16, y=0.95)  # Posición ligeramente más abajo
         # plt.show()
 
@@ -387,6 +392,81 @@ def representar_regresion(resultados, ruta_archivo):
         print(f"Grafico regresiones guardado en: {ruta_regresiones}")
 
 
+def obtencion_diccionario (ruta_resultados):
+
+    df1 = pd.read_excel (ruta_resultados)
+    # Asegúrate de que el DataFrame se ha cargado correctamente
+    print(df1.head())
+
+    # Convertir a un diccionario anidado por Subgrupo y Modelo
+    diccionario_anidado = {}
+
+    """ Iterar sobre cada fila del Datafram como una serie de Pandas, Devuelve un par (indice, fila) donde "_" es una convencion para indicar que la variable de indice no se va a utilizar
+    , fila es un objeto de tipo Series que representa los datos de la fila actual. Recordar que la estructura de un dataframe de Pandas es del estilo de:
+           Subgrupo Modelo     Ea (J/mol)  ...        R2     Pendiente   Ordenada
+    0         1    CR0   53687.722000  ...  0.800811  -6457.197393   3.682499
+    1         1    CR1   54338.567886  ...  0.805614  -6535.476749   3.934011
+    2         1    CR2   55331.317344  ...  0.812714  -6654.877964   5.416142
+    3         1    CR3   55666.626976  ...  0.815052  -6695.206747   4.447035
+    4         1    DM0  112956.033739  ...  0.817032 -13585.590510  21.000513
+
+    """
+    for _, fila in df1.iterrows():
+        subgrupo = fila['Subgrupo']
+        modelo = fila['Modelo']
+
+        # Crear una entrada para el subgrupo si no existe
+        if subgrupo not in diccionario_anidado:
+            diccionario_anidado[subgrupo] = {}
+
+        # Agregar el modelo y sus parámetros
+        diccionario_anidado[subgrupo][modelo] = {
+            "Ea (J/mol)": fila['Ea (J/mol)'],
+            "R2": fila['R2'],
+            "a": fila['Pendiente'],
+            "b": fila['Ordenada']
+        }
+    return diccionario_anidado
+
+def calculo_porcentajes_modelo1 (parametros_biomasa, parametros_componentes):
+    A = np.array([[parametros_componentes["celulosa_15_aire"]["1"]["CR0"]["a"], parametros_componentes["lignina_15_aire"]["1"]["CR0"]["a"], parametros_componentes["xilano_15_aire"]["1"]["CR0"]["a"]],
+                  [parametros_componentes["celulosa_15_aire"]["1"]["CR0"]["b"], parametros_componentes["lignina_15_aire"]["1"]["CR0"]["b"], parametros_componentes["xilano_15_aire"]["1"]["CR0"]["b"]],
+                  [1, 1, 1]])
+
+    B = np.array([parametros_biomasa["hoja_enebro_15_aire"]["1"]["CR3"]["a"], parametros_biomasa["hoja_enebro_15_aire"]["1"]["CR3"]["b"], 1])
+    solucion = np.linalg.solve(A, B)
+
+    print("La solución es para el subgrupo 1 de la Hoja Enebro 15 aire es:")
+    print("%Celulosa =", solucion[0]*100)
+    print("%Lignina =", solucion[1]*100)
+    print("%Xilano =", solucion[2]*100)
+
+    # ----------------------------------
+    A = np.array([[parametros_componentes["celulosa_15_aire"]["2"]["NG3"]["a"], parametros_componentes["lignina_15_aire"]["2"]["NG3"]["a"], parametros_componentes["xilano_15_aire"]["3"]["NG3"]["a"]],
+                  [parametros_componentes["celulosa_15_aire"]["2"]["NG3"]["b"], parametros_componentes["lignina_15_aire"]["2"]["NG3"]["b"], parametros_componentes["xilano_15_aire"]["3"]["NG3"]["b"]],
+                  [1, 1, 1]])
+
+    B = np.array([parametros_biomasa["hoja_enebro_15_aire"]["2"]["CR0"]["a"], parametros_biomasa["hoja_enebro_15_aire"]["2"]["CR0"]["b"], 1])
+    solucion = np.linalg.solve(A, B)
+
+    print("La solución es para el subgrupo 2 de la Hoja Enebro 15 aire es:")
+    print("%Celulosa =", solucion[0] * 100)
+    print("%Lignina =", solucion[1] * 100)
+    print("%Xilano =", solucion[2] * 100)
+
+    # ----------------------------------
+    A = np.array([[parametros_componentes["celulosa_15_aire"]["3"]["CR1"]["a"], parametros_componentes["lignina_15_aire"]["3"]["DM2"]["a"], parametros_componentes["xilano_15_aire"]["1"]["CR0"]["a"]],
+                  [parametros_componentes["celulosa_15_aire"]["3"]["CR1"]["b"], parametros_componentes["lignina_15_aire"]["3"]["DM2"]["b"], parametros_componentes["xilano_15_aire"]["5"]["CR0"]["b"]],
+                  [1, 1, 1]])
+
+    B = np.array([parametros_biomasa["hoja_enebro_15_aire"]["1"]["CR3"]["a"], parametros_biomasa["hoja_enebro_15_aire"]["1"]["CR3"]["b"], 1])
+    solucion = np.linalg.solve(A, B)
+
+    print("La solución es para el subgrupo 3 de la Hoja Enebro 15 aire es:")
+    print("%Celulosa =", solucion[0] * 100)
+    print("%Lignina =", solucion[1] * 100)
+    print("%Xilano =", solucion[2] * 100)
+
 # ============================================================================
 # FLUJO PRINCIPAL PARA EL ANALISIS CINETICO DE LOS COMPONENTES INDIVIDUALMENTE
 # ============================================================================
@@ -399,13 +479,13 @@ def main_componentes(ruta_archivo):
         'lignina_5_n2': [190, 600],
         'xilano_5_aire': [240, 265, 450],
         'xilano_5_n2': [245, 280, 600],
-        'celulosa_15_aire': [90,310,350,575],   # Añadidos para realizar mejores ajustes en cada fase, de cara a obtener el porcentaje masico de cada componente en la biomasa
+        'celulosa_15_aire': [100,300,350,575],   # Añadidos para realizar mejores ajustes en cada fase, de cara a obtener el porcentaje masico de cada componente en la biomasa
         #'celulosa_15_aire': [310, 350, 575],
         'celulosa_15_n2': [315, 360, 600],
-        'lignina_15_aire': [90,225,630],
+        'lignina_15_aire': [100,225,630],
         #'lignina_15_aire': [225, 630],
         'lignina_15_n2': [200, 580],
-        'xilano_15_aire': [100,225,285,520],
+        'xilano_15_aire': [50,115,225,285,520],
         #'xilano_15_aire': [255, 285, 520],
         'xilano_15_n2': [270, 290, 600],
         'celulosa_30_aire': [320, 375, 600],
@@ -457,8 +537,26 @@ def main_componentes(ruta_archivo):
 
     representar_regresion(resultados, ruta_archivo)
 
+    return resultados
+
+
+# ============================================================================
+# FLUJO PRINCIPAL PARA EL ANALISIS MASICO DE LA BIOMASA
+# ============================================================================
 def main_biomasa (ruta_archivo):
+    # Seleccion temperaturas para división en subgrupos (distintas fases de los componentes)
+    temp_seleccionadas = {
+        'hoja_enebro_15_aire': [115, 210, 530],
+        'hoja_jara_15_aire': [140, 570],
+        'hoja_pino_15_aire': [140, 220, 360, 570],
+        'rama_enebro_15_aire': [120, 250, 520],
+        'rama_jara_15_aire': [120, 255, 520],
+        'rama_pino_15_aire': [130, 230, 530],
+        'trozorama_pino_15_aire': [155, 220,600],
+    }
+
     nombre_biomasa = os.path.splitext(os.path.basename(ruta_archivo))[0]
+    temp_subgrupos = temp_seleccionadas[nombre_biomasa]
 
     df = cargar_datos(ruta_archivo)
     datos = procesar_datos(df)
@@ -467,23 +565,32 @@ def main_biomasa (ruta_archivo):
     dtg_suavizado = suavizar_dtg(dtg, 400)
     df['DTG_suavizado'] = dtg_suavizado
 
-    figura = generar_grafico(df, eje_x='Temperature T(c)', columnas_y=['Weight (mg)', 'Heat Flow (Normalized) Q (W/g)', 'DTG_suavizado'], ruta_archivo=ruta_archivo, particiones=None)
+    subgrupos, indices = dividir_en_subgrupos(datos['temperature'], datos['temperature_k'], datos['alpha'], datos['weight_mg'], datos['time'], datos['heat_flow_q'], temp_subgrupos)
+
+    figura = generar_grafico(df, eje_x='Temperature T(c)', columnas_y=['Weight (mg)', 'Heat Flow (Normalized) Q (W/g)', 'DTG_suavizado'], ruta_archivo=ruta_archivo, particiones=indices)
 
     guardar_graficas(figura, ruta_archivo)
 
+    resultados_biomasa = aplicar_modelos(subgrupos, beta = 15)
+
+    guardar_resultados(resultados_biomasa, ruta_archivo)
+
+    return resultados_biomasa
 
 if __name__ == "__main__":
     # Directorio principal que contiene las carpetas con los archivos .csv
-    directorio = 'DatosComponentes'
+    directorio_componentes = 'DatosComponentes'
+
+    parametros_componentes = {}
 
     # Leer el contenido del directorio 'DatosComponentes' solo una vez
-    contenido_directorio = [(carpeta, os.listdir(os.path.join(directorio, carpeta)))
-                            for carpeta in os.listdir(directorio)
-                            if os.path.isdir(os.path.join(directorio, carpeta))]
+    contenido_directorio_componentes = [(carpeta, os.listdir(os.path.join(directorio_componentes, carpeta)))
+                            for carpeta in os.listdir(directorio_componentes)
+                            if os.path.isdir(os.path.join(directorio_componentes, carpeta))]
 
     # Procesar los archivos de la lista obtenida en la lectura única del directorio
-    for carpeta, archivos in contenido_directorio:
-        ruta_carpeta = os.path.join(directorio, carpeta)
+    for carpeta, archivos in contenido_directorio_componentes:
+        ruta_carpeta = os.path.join(directorio_componentes, carpeta)
 
         # Recorrer los archivos en la lista de archivos de esa carpeta
         for archivo in archivos:
@@ -491,6 +598,32 @@ if __name__ == "__main__":
             if archivo.endswith('.csv'):
                 ruta_archivo = os.path.join(ruta_carpeta, archivo)  # DatosComponentes/VelocidadCalentamiento5/celulosa_5_aire.csv, por ejemplo.
                 # Procesar el archivo .csv
-                main_componentes(ruta_archivo)
+                nombre_componente = os.path.splitext(os.path.basename(ruta_archivo))[0]
+                parametros_componentes[nombre_componente] = main_componentes(ruta_archivo)  # Modificarlo mas adelante para que cuando este trabajando con biomasa, pueda leer los resultados de un csv o excel directamente.
+
+    # Directorio principal que contiene las carpetas con los archivos .csv
+    directorio_biomasa = 'DatosBiomasa'
+
+    # Creacion de diccionario para poder almacenar los resultados de cada Biomasa
+    parametros_biomasa = {}
+
+    # Leer el contenido del directorio 'DatosBiomasa' solo una vez
+    contenido_directorio_biomasa = [(carpeta, os.listdir(os.path.join(directorio_biomasa, carpeta)))
+                            for carpeta in os.listdir(directorio_biomasa)
+                            if os.path.isdir(os.path.join(directorio_biomasa, carpeta))]
+
+    # Procesar los archivos de la lista obtenida en la lectura única del directorio
+    for carpeta, archivos in contenido_directorio_biomasa:
+        ruta_carpeta = os.path.join(directorio_biomasa, carpeta)
+
+        # Recorrer los archivos en la lista de archivos de esa carpeta
+        for archivo in archivos:
+            # Verificar si el archivo es un archivo .csv
+            if archivo.endswith('.csv'):
+                ruta_archivo = os.path.join(ruta_carpeta, archivo)  # DatosComponentes/VelocidadCalentamiento5/celulosa_5_aire.csv, por ejemplo.
+                nombre_biomasa = os.path.splitext(os.path.basename(ruta_archivo))[0]
                 # Obtencion porcentaje masico de los componentes puros en la biomasa
-                #main_biomasa (ruta_archivo)
+                parametros_biomasa[nombre_biomasa] = main_biomasa(ruta_archivo)  # Esto es algo parecido a crear una variable dinamica, python no permite crear variables dinamicas
+
+    calculo_porcentajes_modelo1(parametros_biomasa,parametros_componentes)  # NO VALE
+    #calculo_porcentajes_modelo2()

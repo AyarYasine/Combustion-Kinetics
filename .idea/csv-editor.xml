@@ -213,6 +213,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\DatosBiomasa\VelocidadCalentamiento15\hoja_enebro_15_aire.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
       </map>
     </option>
   </component>
